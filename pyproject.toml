@@ -28,7 +28,8 @@ classifiers = [
 ]
 urls.download = "https://github.com/pyxu-org/pyxu_finufft"
 dependencies = [
-    "pyxu >= 2.0, < 3",
+    # "pyxu >= 2.0, < 3",
+    "pyxu",
 ]
 
 # Get version info from Git ===================================================
