@@ -12,9 +12,6 @@ It provides detailed descriptions of each component's role, relations, assumptio
 Please note that this API reference is not designed to be a tutorial;
 it is a technical resource aimed at users who are already familiar with Pyxu.
 
-.. todo::
-
-   explain how to load elements given entry points.
 
 .. contents:: Table of Contents
    :local:
@@ -26,7 +23,9 @@ pyxu_finufft.operator
 
 .. autosummary::
 
-   ~pyxu_finufft.operator.G
+   ~pyxu_finufft.operator.NUFFT1
+   ~pyxu_finufft.operator.NUFFT2
+   ~pyxu_finufft.operator.NUFFT3
 
 
 .. toctree::

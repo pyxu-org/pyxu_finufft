@@ -1,2 +1,1 @@
-class G:
-    pass
+from pyxu_finufft.operator.linop.nufft import *
