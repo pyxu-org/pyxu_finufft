@@ -1,5 +1,4 @@
-pyxu.math
-=========
+pyxu_finufft.math
+=================
 
-.. autoclass:: pyxu.math.eigh
-   :no-members:
+.. autofunction:: pyxu_finufft.math.f

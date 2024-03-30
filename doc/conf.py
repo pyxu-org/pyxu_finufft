@@ -6,68 +6,34 @@ For a full list see the documentation:
 https://www.sphinx-doc.org/en/master/usage/configuration.html
 """
 
-import collections.abc as cabc
-import configparser
 import datetime as dt
-import os
+import importlib.metadata as im
 import pathlib as plib
-import re
 
 
-def setup_config() -> configparser.ConfigParser:
-    """
-    Load information contained in `setup.cfg`.
-    """
+def load_nitpick_ignore() -> list:
+    # Load references to be ignored by `nitpick`.
     sphinx_src_dir = plib.Path(__file__).parent
-    setup_path = sphinx_src_dir / ".." / "setup.cfg"
-    setup_path = setup_path.resolve(strict=True)
+    f_path = sphinx_src_dir / "nitpick-exceptions"
 
-    with setup_path.open(mode="r") as f:
-        cfg = configparser.ConfigParser()
-        cfg.read_file(f)
-    return cfg
-
-
-def pkg_info() -> cabc.Mapping:
-    """
-    Load information contained in `PKG-INFO`.
-    """
-    sphinx_src_dir = plib.Path(__file__).parent
-    info_path = sphinx_src_dir / ".." / "src" / "pyxu_finufft.egg-info" / "PKG-INFO"
-    info_path = info_path.resolve(strict=True)
-
-    info_path = info_path.resolve(strict=True)
-
-    # Pattern definitions
-    pat_version = r"Version: (.+)$"
-
-    with info_path.open(mode="r") as f:
-        info = dict(version=None)
-        for line in f:
-            if (m := re.match(pat_version, line)) is not None:
-                info["version"] = m.group(1)
-    return info
+    data = set()
+    for line in open(f_path, mode="r"):
+        if line.strip() == "" or line.startswith("#"):
+            continue
+        dtype, target = line.split(None, 1)
+        data.add((dtype, target.strip()))
+    return list(data)
 
 
 # -- Project information -----------------------------------------------------
-cfg, info = setup_config(), pkg_info()
-project = cfg.get("metadata", "name")
-author = cfg.get("metadata", "author")
+cfg = im.metadata("pyxu_finufft")
+author = cfg["Author-email"]  # "Author" alone doesn't work if email provided in pyproject.toml; don't know why
 copyright = f"{dt.date.today().year}, {author}"
 
-# The version info for the project you're documenting, acts as replacement for |version|
-# and |release|, also used in various other places throughout the built documents.
-version = info["version"]
-if os.environ.get("READTHEDOCS", False):
-    rtd_version = os.environ.get("READTHEDOCS_VERSION", "")
-    if "." not in rtd_version and rtd_version.lower() != "stable":
-        version = "dev"
-else:
-    branch_name = os.environ.get("BUILD_SOURCEBRANCHNAME", "")
-    if branch_name == "main":
-        version = "dev"
-release = version  # The full version, including alpha/beta/rc tags.
-
+# Compute legible version info.
+version = cfg["Version"]  # <semver>[.devXXX][+<git-hash>]
+version = version.strip().split("+")[0]  # restrict to <semver>[.devXXX]
+release = version
 
 # -- General configuration ---------------------------------------------------
 root_doc = "index"  # legacy term = "master_doc"
@@ -87,6 +53,7 @@ exclude_patterns = [
 templates_path = ["_templates"]
 
 nitpicky = True
+nitpick_ignore_regex = load_nitpick_ignore()
 add_module_names = False
 maximum_signature_line_length = 140
 language = "en"
@@ -97,8 +64,8 @@ python_display_short_literal_types = True
 # -- Options for HTML output -------------------------------------------------
 html_theme = "pydata_sphinx_theme"
 html_title = "pyxu_finufft Documentation"
-html_logo = "_static/logo.png"  # Add here your plugin logo
-html_favicon = "_static/favicon.png"  # Add here your plugin favicon
+html_logo = "_static/logo.png"
+html_favicon = "_static/favicon.png"
 html_sourcelink_suffix = ""
 html_short_title = "Pyxu bindings to the Flatiron Institute Non-uniform Fast Fourier Transform (FINUFFT) library"
 
@@ -107,7 +74,7 @@ html_theme_options = {
     "icon_links": [
         {
             "name": "GitHub",
-            "url": "provide later",
+            "url": "https://github.com/pyxu-org/pyxu_finufft/",
             "icon": "fa-brands fa-github",
         },
         {
@@ -118,13 +85,6 @@ html_theme_options = {
         {
             "name": "Contact",
             "url": "mailto: sepand@kashani.ch",
-            "icon": "fa-brands fa-telegram",
-        },
-        {
-            "name": "Pyxu",
-            "url": "https://pyxu-org.github.io/",
-            "icon": "_static/pyxu.png",
-            "type": "local",
         },
     ],
     "use_edit_page_button": True,
@@ -140,7 +100,7 @@ html_theme_options = {
 
 html_context = {
     "github_user": "SepandKashani",
-    "github_repo": "provide later",
+    "github_repo": "https://github.com/pyxu-org/pyxu_finufft",
     "github_version": "main",
     "doc_path": "doc",
     "default_mode": "light",
@@ -158,6 +118,7 @@ extensions = [
     "sphinx_codeautolink",
     "sphinx_copybutton",
     "sphinx_design",
+    "sphinx_gallery.gen_gallery",
     "sphinx_togglebutton",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
@@ -187,6 +148,14 @@ codeautolink_concat_default = True
 # copybutton config: strip console characters
 copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
 copybutton_prompt_is_regexp = True
+
+# -- Options for sphinx_design extension -------------------------------------
+
+# -- Options for sphinx_gallery extension ------------------------------------
+sphinx_gallery_conf = {
+    "examples_dirs": ["examples"],  # Path to your Jupyter notebooks
+    "gallery_dirs": ["examples"],  # Path where the gallery should be placed
+}
 
 # -- Options for togglebutton extension --------------------------------------
 
@@ -224,11 +193,8 @@ intersphinx_mapping = {  # We only include most useful doc-sets.
     "CuPy [latest]": ("https://docs.cupy.dev/en/latest/", None),
     "SciPy [latest]": ("https://docs.scipy.org/doc/scipy/", None),
     "Dask [stable]": ("https://docs.dask.org/en/stable/", None),
-    "Sparse [latest]": ("https://sparse.pydata.org/en/latest/", None),
     "Pytest [latest]": ("https://docs.pytest.org/en/latest/", None),
     "Matplotlib [stable]": ("https://matplotlib.org/stable/", None),
-    "JAX [latest]": ("https://jax.readthedocs.io/en/latest/", None),
-    "PyTorch [stable]": ("https://pytorch.org/docs/stable/", None),
     "Pyxu [stable]": ("https://pyxu-org.github.io/", None),
 }
 
@@ -250,7 +216,6 @@ napoleon_type_aliases = {
     "NDArrayInfo": "~pyxu.info.deps.NDArrayInfo",
     "NDArrayShape": "~pyxu.info.ptype.NDArrayShape",
     "OpC": "~pyxu.info.ptype.OpC",
-    "OpShape": "~pyxu.info.ptype.OpShape",
     "OpT": "~pyxu.info.ptype.OpT",
     "Path": "~pyxu.info.ptype.Path",
     "Real": "~pyxu.info.ptype.Real",

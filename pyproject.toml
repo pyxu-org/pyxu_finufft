@@ -1,0 +1,50 @@
+[build-system]
+requires = [
+    "hatchling",
+    "hatch-vcs",
+]
+build-backend = "hatchling.build"
+
+# Metadata ====================================================================
+[project]
+name = "pyxu_finufft"
+dynamic = ["version"]
+description = "Pyxu bindings to the Flatiron Institute Non-uniform Fast Fourier Transform (FINUFFT) library."
+readme = "README.rst"
+requires-python = ">= 3.10, < 3.13"
+license = "MIT"
+authors = [
+    { name = "S. Kashani", email = "sepand@kashani.ch" },
+]
+classifiers = [
+    "Topic :: Scientific/Engineering",
+    "Intended Audience :: Science/Research",
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+urls.download = "https://github.com/pyxu-org/pyxu_finufft"
+dependencies = [
+    "pyxu >= 2.0, < 3",
+]
+
+# Get version info from Git ===================================================
+[tool.hatch.version]
+source = "vcs"
+
+# sdist/wheel config ==========================================================
+[tool.hatch.build]
+exclude = [
+    "/dev",
+    "/doc",
+    "/src/pyxu_finufft_tests",
+]
+include = [
+    "/src",
+]
+packages = [
+    "src/pyxu_finufft",
+]
