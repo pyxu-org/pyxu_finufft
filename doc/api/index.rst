@@ -21,14 +21,6 @@ it is a technical resource aimed at users who are already familiar with Pyxu.
    :depth: 2
 
 
-pyxu_finufft.math
------------------
-
-.. autosummary::
-
-   ~pyxu_finufft.math.f
-
-
 pyxu_finufft.operator
 ---------------------
 
@@ -41,5 +33,4 @@ pyxu_finufft.operator
    :maxdepth: 1
    :hidden:
 
-   math
    operator
