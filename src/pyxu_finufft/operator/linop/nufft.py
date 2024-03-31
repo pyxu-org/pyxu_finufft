@@ -272,34 +272,44 @@ class NUFFT1(pxa.LinOp):
     @staticmethod
     def _plan_fw(**kwargs) -> finufft.Plan:
         kwargs = kwargs.copy()
-        x, N = [kwargs.pop(_) for _ in ("x", "N")]
-        _, D = x.shape
 
+        x, N = [kwargs.pop(_) for _ in ("x", "N")]
         cwidth = pxrt.Width(x.dtype).complex
-        plan = finufft.Plan(
+        kwargs.update(
             nufft_type=1,
-            n_modes_or_dim=2 * N + 1,
             dtype=cwidth.value,
             isign=kwargs.pop("isign"),
-            **kwargs,
         )
+        ndi = pxd.NDArrayInfo.from_obj(x)
+        if ndi == pxd.NDArrayInfo.NUMPY:
+            kwargs["n_modes_or_dim"] = tuple(2 * N + 1)
+        else:  # CUPY
+            kwargs["n_modes"] = tuple(2 * N + 1)
+
+        _, D = x.shape
+        plan = finufft.Plan(**kwargs)
         plan.setpts(**dict(zip("xyz"[:D], x.T[:D])))
         return plan
 
     @staticmethod
     def _plan_bw(**kwargs) -> finufft.Plan:
         kwargs = kwargs.copy()
-        x, N = [kwargs.pop(_) for _ in ("x", "N")]
-        _, D = x.shape
 
+        x, N = [kwargs.pop(_) for _ in ("x", "N")]
         cwidth = pxrt.Width(x.dtype).complex
-        plan = finufft.Plan(
+        kwargs.update(
             nufft_type=2,
-            n_modes_or_dim=2 * N + 1,
             dtype=cwidth.value,
             isign=-kwargs.pop("isign"),
-            **kwargs,
         )
+        ndi = pxd.NDArrayInfo.from_obj(x)
+        if ndi == pxd.NDArrayInfo.NUMPY:
+            kwargs["n_modes_or_dim"] = tuple(2 * N + 1)
+        else:  # CUPY
+            kwargs["n_modes"] = tuple(2 * N + 1)
+
+        _, D = x.shape
+        plan = finufft.Plan(**kwargs)
         plan.setpts(**dict(zip("xyz"[:D], x.T[:D])))
         return plan
 
