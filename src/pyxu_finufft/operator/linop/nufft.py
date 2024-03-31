@@ -1,7 +1,6 @@
 import collections.abc as cabc
 import warnings
 
-import finufft
 import numpy as np
 import pyxu.abc as pxa
 import pyxu.info.deps as pxd
@@ -270,7 +269,7 @@ class NUFFT1(pxa.LinOp):
             return np.r_[tuple(map(_type, _x))]
 
     @staticmethod
-    def _plan_fw(**kwargs) -> finufft.Plan:
+    def _plan_fw(**kwargs):
         kwargs = kwargs.copy()
 
         x, N = [kwargs.pop(_) for _ in ("x", "N")]
@@ -287,12 +286,12 @@ class NUFFT1(pxa.LinOp):
             kwargs["n_modes"] = tuple(2 * N + 1)
 
         _, D = x.shape
-        plan = finufft.Plan(**kwargs)
+        plan = _get_planner(ndi)(**kwargs)
         plan.setpts(**dict(zip("xyz"[:D], x.T[:D])))
         return plan
 
     @staticmethod
-    def _plan_bw(**kwargs) -> finufft.Plan:
+    def _plan_bw(**kwargs):
         kwargs = kwargs.copy()
 
         x, N = [kwargs.pop(_) for _ in ("x", "N")]
@@ -309,7 +308,7 @@ class NUFFT1(pxa.LinOp):
             kwargs["n_modes"] = tuple(2 * N + 1)
 
         _, D = x.shape
-        plan = finufft.Plan(**kwargs)
+        plan = _get_planner(ndi)(**kwargs)
         plan.setpts(**dict(zip("xyz"[:D], x.T[:D])))
         return plan
 
@@ -438,3 +437,16 @@ def NUFFT2(
 
 class NUFFT3:
     pass
+
+
+# Helpers (internal) ----------------------------------------------------------
+def _get_planner(ndi: pxd.NDArrayInfo):
+    # Load [cu]finufft.Plan based on supplied backend.
+
+    if ndi == pxd.NDArrayInfo.NUMPY:
+        import finufft as fi
+    elif ndi == pxd.NDArrayInfo.CUPY:
+        import cufinufft as fi
+    else:
+        raise NotImplementedError
+    return fi.Plan
