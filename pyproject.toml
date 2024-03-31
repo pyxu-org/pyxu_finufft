@@ -33,6 +33,12 @@ dependencies = [
     "finufft >= 2.2.0, < 3",
 ]
 
+# Optional dependencies =======================================================
+[project.optional-dependencies]
+gpu = [ "cufinufft >= 2.2.0, < 3", ]
+all = [ "pyxu_finufft[gpu]", ]
+
+
 # Get version info from Git ===================================================
 [tool.hatch.version]
 source = "vcs"

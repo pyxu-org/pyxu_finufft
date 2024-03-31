@@ -23,7 +23,8 @@ You can install ``pyxu_finufft`` via `pip`_:
 
 .. code-block:: bash
 
-   pip install pyxu_finufft
+   pip install pyxu_finufft       # CPU, or
+   pip install pyxu_finufft[all]  # CPU/GPU
 
 License
 -------
