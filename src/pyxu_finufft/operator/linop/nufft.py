@@ -350,11 +350,7 @@ class NUFFT1(pxa.LinOp):
         data = data.reshape(Q, plan.n_trans, *sh_in)
         out = xp.zeros((Q, plan.n_trans, *sh_out), dtype=x.dtype)
         for q in range(Q):
-            if plan.n_trans == 1:
-                # execute() accepts 1D arrays only in this context.
-                plan.execute(data[q, 0], out[q, 0])
-            else:
-                plan.execute(data[q], out[q])
+            plan.execute(data[q], out[q])
 
         # Remove pad/reshape output
         out = out.reshape(-1, *sh_out)[:N_stack]
