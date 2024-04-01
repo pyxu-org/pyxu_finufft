@@ -27,15 +27,16 @@ class TestNUFFT1(conftest.LinOpT):
         # user. Additional tests below test explicitly if computed values correctly obey `eps`.
         eps_default = 1e-3
 
-        cast = lambda x: pxu.compute(x)
-        lhs = np.linalg.norm(pxu.to_NUMPY(cast(a) - cast(b)).ravel())
-        rhs = np.linalg.norm(pxu.to_NUMPY(cast(b)).ravel())
+        cast = lambda x: pxu.to_NUMPY(x)
+        lhs = np.linalg.norm((cast(a) - cast(b)).ravel())
+        rhs = np.linalg.norm(cast(b).ravel())
         return ct.less_equal(lhs, eps_default * rhs, as_dtype=as_dtype).all()
 
     @pytest.fixture(
         params=itertools.product(
             [
                 pxd.NDArrayInfo.NUMPY,
+                pxd.NDArrayInfo.CUPY,
             ],
             pxrt.CWidth,
         )
