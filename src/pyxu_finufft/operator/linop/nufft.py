@@ -94,7 +94,10 @@ class NUFFT1(pxa.LinOp):
             dim_shape=(M, 2),
             codim_shape=(*L, 2),
         )
-        self._x = pxrt.coerce(x)
+        self._x = x.astype(  # finufft.Plan.setpts() warns if dimensions are not contiguous.
+            order="F",  # irrelevant for DASK inputs
+            dtype=pxrt.getPrecision().value,
+        )
         self._kwargs = dict(
             N=N,
             isign=isign,
@@ -111,9 +114,8 @@ class NUFFT1(pxa.LinOp):
             # FINUFFT plans will be constructed at runtime; we just make sure `x` chunks are valid.s
             assert self._x.chunks[1] == (D,), "[x] Chunking along last dimension unsupported."
         else:
-            x = self._x.copy(order="F")  # finufft.Plan.setpts() warns if dimensions are not contiguous.
-            self._pfw = self._plan_fw(x=x, **self._kwargs)
-            self._pbw = self._plan_bw(x=x, **self._kwargs)
+            self._pfw = self._plan_fw(x=self._x, **self._kwargs)
+            self._pbw = self._plan_bw(x=self._x, **self._kwargs)
 
     @pxrt.enforce_precision(i="arr")
     def apply(self, arr: pxt.NDArray) -> pxt.NDArray:
