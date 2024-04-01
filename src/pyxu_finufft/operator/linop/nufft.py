@@ -237,7 +237,7 @@ class NUFFT1(pxa.LinOp):
         xp = kwargs.get("xp", pxd.NDArrayInfo.NUMPY.module())
         dtype = kwargs.get("dtype", pxrt.getPrecision().value)
         C = xp.array(
-            pxu.as_real_op(B, dim_rank=1),
+            pxu.to_NUMPY(pxu.as_real_op(B, dim_rank=1)),
             dtype=pxrt.Width(dtype).value,
         )
         return C
