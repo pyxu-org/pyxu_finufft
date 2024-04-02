@@ -114,6 +114,20 @@ You can install ``pyxu_finufft`` via ``pip``:
    pip install pyxu_finufft[all]  # CPU/GPU
 
 
+Developer Install
++++++++++++++++++
+
+The HTML docs can be built using Sphinx:
+
+.. code-block:: bash
+
+   pip install pyxu_finufft[dev]
+   pre-commit install
+
+   tox run -e doc   # build docs
+   tox run -e dist  # build packages for PyPI
+
+
 .. todo::
 
    Explain how to use it via pyxu imports and not via pyxu_finufft.
