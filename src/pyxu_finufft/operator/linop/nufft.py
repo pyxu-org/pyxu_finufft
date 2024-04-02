@@ -44,7 +44,8 @@ class NUFFT1(pxa.LinOp):
     * :py:class:`~pyxu_finufft.operator.NUFFT1` is not **precision-agnostic**: it will only work on NDArrays with the
       same dtype as `x`.  A warning is emitted if inputs must be cast to the support dtype.
     * :py:class:`~pyxu_finufft.operator.NUFFT1` instances are **not arraymodule-agnostic**: they will only work with
-      NDArrays belonging to the same array module as `x`.
+      NDArrays belonging to the same array module as `x`. Only NUMPY and CUPY backends are supported.  (DASK arrays are
+      not supported because FFTW planning is not thread safe, hence cannot be guaranteed to not seg-fault.)
     """
 
     def __init__(
@@ -95,7 +96,7 @@ class NUFFT1(pxa.LinOp):
             codim_shape=(*L, 2),
         )
         self._x = x.astype(  # finufft.Plan.setpts() warns if dimensions are not contiguous.
-            order="F",  # irrelevant for DASK inputs
+            order="F",
             dtype=pxrt.getPrecision().value,
         )
         self._kwargs = dict(
@@ -111,8 +112,8 @@ class NUFFT1(pxa.LinOp):
         # Backend-Specific Metadata -------------------------------------------
         ndi = pxd.NDArrayInfo.from_obj(self._x)
         if ndi == pxd.NDArrayInfo.DASK:
-            # FINUFFT plans will be constructed at runtime; we just make sure `x` chunks are valid.s
-            assert self._x.chunks[1] == (D,), "[x] Chunking along last dimension unsupported."
+            msg = "FFTW planning is not thread-safe."
+            raise NotImplementedError(msg)
         else:
             self._pfw = self._plan_fw(x=self._x, **self._kwargs)
             self._pbw = self._plan_bw(x=self._x, **self._kwargs)
@@ -154,10 +155,7 @@ class NUFFT1(pxa.LinOp):
 
         sh = arr.shape[:-1]
         if ndi == pxd.NDArrayInfo.DASK:
-            assert (
-                arr.chunks[-1] == self._x.chunks[0]
-            ), "Support weights `w` must have same chunk-structure as support points `x`."
-            raise NotImplementedError  # to be done later
+            raise NotImplementedError
         else:  # NUMPY/CUPY
             N_stack = int(np.prod(sh))
             out = self._transform(
@@ -203,10 +201,7 @@ class NUFFT1(pxa.LinOp):
 
         sh = arr.shape[: -(self.codim_rank - 1)]
         if ndi == pxd.NDArrayInfo.DASK:
-            assert arr.blocks[-(self.codim_rank - 1) :] == (1,) * (
-                self.codim_rank - 1
-            ), "Lattice weights `v` cannot be chunked."
-            raise NotImplementedError  # to be done later
+            raise NotImplementedError
         else:  # NUMPY/CUPY
             N_stack = int(np.prod(sh))
             out = self._transform(
@@ -356,13 +351,6 @@ class NUFFT1(pxa.LinOp):
         out = out.reshape(-1, *sh_out)[:N_stack]
         return out
 
-    def _meta(self):
-        # * x: not passed directly since it will be explicitly split in apply/adjoint() calls.
-        # * enable_warnings: disabled for distributed calls, but the cast still takes place.
-        kwargs = self._kwargs.copy()
-        kwargs["enable_warnings"] = False
-        return kwargs
-
 
 def NUFFT2(
     x: pxt.NDArray,
@@ -394,8 +382,9 @@ def NUFFT2(
 
     * :py:func:`~pyxu_finufft.operator.NUFFT2` is not **precision-agnostic**: it will only work on NDArrays with the
       same dtype as `x`.  A warning is emitted if inputs must be cast to the support dtype.
-    * :py:func:`~pyxu_finufft.operator.NUFFT2` instances are **not arraymodule-agnostic**: they will only work with
-      NDArrays belonging to the same array module as `x`.
+    * :py:class:`~pyxu_finufft.operator.NUFFT2` instances are **not arraymodule-agnostic**: they will only work with
+      NDArrays belonging to the same array module as `x`. Only NUMPY and CUPY backends are supported.  (DASK arrays are
+      not supported because FFTW planning is not thread safe, hence cannot be guaranteed to not seg-fault.)
 
 
     Parameters

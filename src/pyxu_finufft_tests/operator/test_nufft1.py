@@ -52,16 +52,7 @@ class TestNUFFT1(conftest.LinOpT):
         self._skip_if_unsupported(ndi)
 
         xp = ndi.module()
-        x_spec = ct.chunk_array(
-            xp.array(
-                x_spec,
-                dtype=width.real.value,
-            ),
-            # `x` is not a complex view, but its last axis cannot be chunked.
-            # [See UniformSpread() as to why.]
-            # We emulate this by setting `complex_view=True`.
-            complex_view=True,
-        )
+        x_spec = xp.array(x_spec, dtype=width.real.value)
 
         with pxrt.Precision(width.real):
             op = pxo.NUFFT1(
