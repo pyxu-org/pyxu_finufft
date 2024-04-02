@@ -29,8 +29,7 @@ You can install ``pyxu_finufft`` via `pip`_:
 License
 -------
 
-Distributed under the terms of the `MIT`_ license,
-``pyxu_finufft`` is free and open source software
+Distributed under the terms of the `MIT`_ license, ``pyxu_finufft`` is free and open source software.
 
 Issues
 ------
