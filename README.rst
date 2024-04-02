@@ -1,9 +1,9 @@
 pyxu_finufft
 ============
 
-.. image:: https://img.shields.io/pypi/l/pyxu_finufft.svg?color=green
-   :target: https://github.com/pyxu-org/pyxu_finufft/raw/main/LICENSE
-   :alt: License MIT
+.. image:: https://img.shields.io/badge/License-MIT-yellow.svg
+   :target: https://opensource.org/licenses/MIT
+   :alt: License: MIT
 .. image:: https://img.shields.io/pypi/v/pyxu_finufft.svg?color=green
    :target: https://pypi.org/project/pyxu_finufft
    :alt: PyPI
