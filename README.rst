@@ -44,3 +44,4 @@ If you encounter any problems, please `file an issue`_ along with a detailed des
 .. _cookiecutter-pyxu: https://github.com/pyxu-org/cookiecutter-pyxu
 .. _tox: https://tox.readthedocs.io/en/latest/
 .. _pip: https://pypi.org/project/pip/
+.. _file an issue: https://github.com/pyxu-org/pyxu_finufft/issues
