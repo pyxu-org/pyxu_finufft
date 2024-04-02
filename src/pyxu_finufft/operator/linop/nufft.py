@@ -85,12 +85,12 @@ class NUFFT1(pxa.LinOp):
             x = x[:, np.newaxis]
         M, D = x.shape
         N = self._as_seq(N, D, int)
-        assert np.all(N > 0)
+        assert all(n > 0 for n in N)
         isign = isign // abs(isign)
         assert 1e-17 <= eps <= 5e-3
 
         # Initialize Operator -------------------------------------------------
-        L = 2 * N + 1
+        L = [2 * n + 1 for n in N]
         super().__init__(
             dim_shape=(M, 2),
             codim_shape=(*L, 2),
@@ -251,7 +251,7 @@ class NUFFT1(pxa.LinOp):
         return out
 
     @staticmethod
-    def _as_seq(x, N, _type=None) -> np.ndarray:
+    def _as_seq(x, N, _type=None) -> tuple:
         if isinstance(x, cabc.Iterable):
             _x = tuple(x)
         else:
@@ -263,7 +263,7 @@ class NUFFT1(pxa.LinOp):
         if _type is None:
             return _x
         else:
-            return np.r_[tuple(map(_type, _x))]
+            return tuple(map(_type, _x))
 
     @staticmethod
     def _plan_fw(**kwargs):
@@ -278,9 +278,9 @@ class NUFFT1(pxa.LinOp):
         )
         ndi = pxd.NDArrayInfo.from_obj(x)
         if ndi == pxd.NDArrayInfo.NUMPY:
-            kwargs["n_modes_or_dim"] = tuple(2 * N + 1)
+            kwargs["n_modes_or_dim"] = tuple(2 * n + 1 for n in N)
         else:  # CUPY
-            kwargs["n_modes"] = tuple(2 * N + 1)
+            kwargs["n_modes"] = tuple(2 * n + 1 for n in N)
 
         _, D = x.shape
         plan = _get_planner(ndi)(**kwargs)
@@ -300,9 +300,9 @@ class NUFFT1(pxa.LinOp):
         )
         ndi = pxd.NDArrayInfo.from_obj(x)
         if ndi == pxd.NDArrayInfo.NUMPY:
-            kwargs["n_modes_or_dim"] = tuple(2 * N + 1)
+            kwargs["n_modes_or_dim"] = tuple(2 * n + 1 for n in N)
         else:  # CUPY
-            kwargs["n_modes"] = tuple(2 * N + 1)
+            kwargs["n_modes"] = tuple(2 * n + 1 for n in N)
 
         _, D = x.shape
         plan = _get_planner(ndi)(**kwargs)
