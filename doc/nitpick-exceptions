@@ -6,6 +6,7 @@ py:class module
 
 # Sphinx does not understand sub-scripted containers
 py:class list\[.+\]
+py:class tuple\[.+\]
 
 # numpy.typing-related
 py:class numpy\._typing\._dtype_like\._DTypeDict
