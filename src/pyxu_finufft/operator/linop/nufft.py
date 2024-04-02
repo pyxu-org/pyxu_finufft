@@ -1,4 +1,5 @@
 import collections.abc as cabc
+import operator
 import warnings
 
 import numpy as np
@@ -435,11 +436,277 @@ def NUFFT2(
     return op2
 
 
-class NUFFT3:
-    pass
+class NUFFT3(_NUFFT):
+    r"""
+    Type-3 Non-Uniform FFT :math:`\mathbf{A}: \mathbb{C}^{M} \to \mathbb{C}^{N}`.
+
+    NUFFT3 approximates, up to a requested relative accuracy :math:`\varepsilon > 0`, the following exponential sum:
+
+    .. math::
+
+       z_{n} = (\mathbf{A} \mathbf{w})_{n} = \sum_{m=1}^{M} w_{m} e^{j \cdot s \langle \mathbf{v}_{n}, \mathbf{x}_{m}
+       \rangle},
+
+    where
+
+    * :math:`s \in \pm 1` defines the sign of the transform;
+    * :math:`\{ \mathbf{x}_{m} \in \mathbb{R}^{D} \}_{m=1}^{M}` are non-uniform support points;
+    * :math:`\{ \mathbf{v}_{n} \in \mathbb{R}^{D} \}_{n=1}^{N}` are non-uniform frequencies;
+    * :math:`\mathbf{w} \in \mathbb{C}^{M}` are weights associated with :math:`\{\mathbf{x}\}_{m=1}^{M}`.
+
+    .. rubric:: Implementation Notes
+
+    * :py:class:`~pyxu_finufft.operator.NUFFT3` is not **precision-agnostic**: it will only work on NDArrays with the
+      same dtype as (`x`,`v`).  A warning is emitted if inputs must be cast to their dtype.
+    * :py:class:`~pyxu_finufft.operator.NUFFT3` instances are **not arraymodule-agnostic**: they will only work with
+      NDArrays belonging to the same array module as (`x`,`v`). Only NUMPY backends are supported.  (DASK arrays are not
+      supported because FFTW planning is not thread safe, hence cannot be guaranteed to not seg-fault; and cuFINUFFT
+      does not yet support the type-3 transform.)
+    """
+
+    def __init__(
+        self,
+        x: pxt.NDArray,
+        v: pxt.NDArray,
+        *,
+        isign: int = isign_default,
+        eps: float = eps_default,
+        enable_warnings: bool = enable_warnings_default,
+        **kwargs,
+    ):
+        r"""
+        Parameters
+        ----------
+        x: NDArray
+            (M, D) support points :math:`\mathbf{x}_{m} \in \mathbb{R}^{D}`.
+        v: NDArray
+            (N, D) frequencies :math:`\mathbf{v}_{n} \in \mathbb{R}^{D}`.
+        isign: 1, -1
+            Sign :math:`s` of the transform.
+        eps: float
+            Requested relative accuracy :math:`\varepsilon > 0`.
+        enable_warnings: bool
+            If ``True``, emit a warning in case of precision mis-match issues.
+        **kwargs
+            Extra kwargs to `finufft.Plan <https://finufft.readthedocs.io/en/latest/python.html#finufft.Plan>`_.
+            Most useful are ``n_trans``, ``nthreads`` and ``debug``.
+        """
+        # Put all variables in canonical form & validate ----------------------
+        #   x: (M, D) array (NUMPY/CUPY)
+        #   v: (N, D) array (NUMPY/CUPY)
+        #   isign: {-1, +1}
+        #   eps: float
+        if x.ndim == 1:
+            x = x[:, np.newaxis]
+        M, D = x.shape
+        if v.ndim == 1:
+            v = v[:, np.newaxis]
+        N, _ = v.shape
+        assert operator.eq(
+            pxd.NDArrayInfo.from_obj(x),
+            pxd.NDArrayInfo.from_obj(v),
+        ), "[x,v] Must belong to the same array backend."
+        assert D == v.shape[1], "[x,v] Must have same dimension D."
+        isign = isign // abs(isign)
+        assert 1e-17 <= eps <= 5e-3
+
+        # Initialize Operator -------------------------------------------------
+        super().__init__(
+            dim_shape=(M, 2),
+            codim_shape=(N, 2),
+        )
+        self._x = x.astype(  # finufft.Plan.setpts() warns if dimensions are not contiguous.
+            order="F",
+            dtype=pxrt.getPrecision().value,
+        )
+        self._v = v.astype(  # finufft.Plan.setpts() warns if dimensions are not contiguous.
+            order="F",
+            dtype=pxrt.getPrecision().value,
+        )
+        self._kwargs = dict(
+            isign=isign,
+            eps=eps,
+            **kwargs,
+        )
+        self._enable_warnings = bool(enable_warnings)
+        self.lipschitz = np.sqrt(N * M)
+
+        # Backend-Specific Metadata -------------------------------------------
+        ndi = pxd.NDArrayInfo.from_obj(self._x)
+        if ndi == pxd.NDArrayInfo.DASK:
+            msg = "FFTW planning is not thread-safe."
+            raise NotImplementedError(msg)
+        elif ndi == pxd.NDArrayInfo.CUPY:
+            msg = "Not supported by cuFINUFFT."
+            raise NotImplementedError(msg)
+        else:
+            self._pfw = self._plan_fw(x=self._x, v=self._v, **self._kwargs)
+            self._pbw = self._plan_bw(x=self._x, v=self._v, **self._kwargs)
+
+    @pxrt.enforce_precision(i="arr")
+    def apply(self, arr: pxt.NDArray) -> pxt.NDArray:
+        r"""
+        Parameters
+        ----------
+        arr: NDArray
+            (..., M,2) weights :math:`\mathbf{w} \in \mathbb{C}^{M}` viewed as a real array. (See
+            :py:func:`~pyxu.util.view_as_real`.)
+
+        Returns
+        -------
+        out: NDArray
+            (..., N,2) weights :math:`\mathbf{z} \in \mathbb{C}^{N}` viewed as a real array. (See
+            :py:func:`~pyxu.util.view_as_real`.)
+        """
+        x = pxu.view_as_complex(pxu.require_viewable(arr))  # (..., M)
+        y = self.capply(x)  # (..., N)
+        out = pxu.view_as_real(pxu.require_viewable(y))  # (..., N,2)
+        return out
+
+    def capply(self, arr: pxt.NDArray) -> pxt.NDArray:
+        r"""
+        Parameters
+        ----------
+        arr: NDArray
+            (..., M) weights :math:`\mathbf{w} \in \mathbb{C}^{M}`.
+
+        Returns
+        -------
+        out: NDArray
+            (..., N) weights :math:`\mathbf{z} \in \mathbb{C}^{N}`.
+        """
+        arr = self._cast_warn(arr)
+        ndi = pxd.NDArrayInfo.from_obj(arr)
+
+        sh = arr.shape[:-1]
+        if ndi == pxd.NDArrayInfo.DASK:
+            raise NotImplementedError
+        elif ndi == pxd.NDArrayInfo.CUPY:
+            raise NotImplementedError
+        else:  # NUMPY
+            N_stack = int(np.prod(sh))
+            out = self._transform(
+                arr.reshape(N_stack, *self.dim_shape[:-1]),
+                mode="fw",
+            ).reshape(*sh, *self.codim_shape[:-1])
+        return out
+
+    @pxrt.enforce_precision(i="arr")
+    def adjoint(self, arr: pxt.NDArray) -> pxt.NDArray:
+        r"""
+        Parameters
+        ----------
+        arr: NDArray
+            (..., N,2) weights :math:`\mathbf{z} \in \mathbb{C}^{N}` viewed as a real array. (See
+            :py:func:`~pyxu.util.view_as_real`.)
+
+        Returns
+        -------
+        out: NDArray
+            (..., M,2) weights :math:`\mathbf{w} \in \mathbb{C}^{M}` viewed as a real array. (See
+            :py:func:`~pyxu.util.view_as_real`.)
+        """
+        x = pxu.view_as_complex(pxu.require_viewable(arr))  # (..., N)
+        y = self.cadjoint(x)  # (..., M)
+        out = pxu.view_as_real(pxu.require_viewable(y))  # (..., M,2)
+        return out
+
+    def cadjoint(self, arr: pxt.NDArray) -> pxt.NDArray:
+        r"""
+        Parameters
+        ----------
+        arr: NDArray
+            (..., N) weights :math:`\mathbf{z} \in \mathbb{C}^{N}`.
+
+        Returns
+        -------
+        out: NDArray
+            (..., M) weights :math:`\mathbf{w} \in \mathbb{C}^{M}`.
+        """
+        arr = self._cast_warn(arr)
+        ndi = pxd.NDArrayInfo.from_obj(arr)
+
+        sh = arr.shape[: -(self.codim_rank - 1)]
+        if ndi == pxd.NDArrayInfo.DASK:
+            raise NotImplementedError
+        elif ndi == pxd.NDArrayInfo.CUPY:
+            raise NotImplementedError
+        else:  # NUMPY
+            N_stack = int(np.prod(sh))
+            out = self._transform(
+                arr.reshape(N_stack, *self.codim_shape[:-1]),
+                mode="bw",
+            ).reshape(*sh, *self.dim_shape[:-1])
+        return out
+
+    def asarray(self, **kwargs) -> pxt.NDArray:
+        isign = self._kwargs["isign"]
+
+        # Perform computation in `x`-backend ... ------------------------------
+        xp = pxu.get_array_module(self._x)
+        B = xp.exp((1j * isign) * (self._v @ self._x.T))  # (N, M)
+
+        # ... then abide by user's backend/precision choice. ------------------
+        xp = kwargs.get("xp", pxd.NDArrayInfo.NUMPY.module())
+        dtype = kwargs.get("dtype", pxrt.getPrecision().value)
+        C = xp.array(
+            pxu.to_NUMPY(pxu.as_real_op(B, dim_rank=1)),
+            dtype=pxrt.Width(dtype).value,
+        )
+        return C
+
+    # Helpers (Internal) ------------------------------------------------------
+    @staticmethod
+    def _plan_fw(**kwargs):
+        kwargs = kwargs.copy()
+
+        x, v = [kwargs.pop(_) for _ in ("x", "v")]
+        _, D = x.shape
+        cwidth = pxrt.Width(x.dtype).complex
+        kwargs.update(
+            nufft_type=3,
+            n_modes_or_dim=D,
+            dtype=cwidth.value,
+            isign=kwargs.pop("isign"),
+        )
+
+        ndi = pxd.NDArrayInfo.from_obj(x)
+        plan = _get_planner(ndi)(**kwargs)
+        pts = dict(
+            zip(
+                "xyz"[:D] + "stu"[:D],
+                (*x.T[:D], *v.T[:D]),
+            )
+        )
+        plan.setpts(**pts)
+        return plan
+
+    @staticmethod
+    def _plan_bw(**kwargs):
+        kwargs = kwargs.copy()
+
+        x, v = [kwargs.pop(_) for _ in ("x", "v")]
+        _, D = x.shape
+        cwidth = pxrt.Width(x.dtype).complex
+        kwargs.update(
+            nufft_type=3,
+            n_modes_or_dim=D,
+            dtype=cwidth.value,
+            isign=-kwargs.pop("isign"),
+        )
+
+        ndi = pxd.NDArrayInfo.from_obj(x)
+        plan = _get_planner(ndi)(**kwargs)
+        pts = dict(
+            zip(
+                "xyz"[:D] + "stu"[:D],
+                (*v.T[:D], *x.T[:D]),
+            )
+        )
+        plan.setpts(**pts)
+        return plan
 
 
-# Helpers (internal) ----------------------------------------------------------
 def _get_planner(ndi: pxd.NDArrayInfo):
     # Load [cu]finufft.Plan based on supplied backend.
 
