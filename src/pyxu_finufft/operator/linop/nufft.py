@@ -224,9 +224,7 @@ class NUFFT1(pxa.LinOp):
             ),
             axis=-1,
         )
-        B = xp.exp(  # (L1,...,LD, M)
-            (1j * isign) * xp.tensordot(A, self._x, axes=[[-1], [-1]]),
-        )
+        B = xp.exp((1j * isign) * xp.tensordot(A, self._x, axes=[[-1], [-1]]))  # (L1,...,LD, M)
 
         # ... then abide by user's backend/precision choice. ------------------
         xp = kwargs.get("xp", pxd.NDArrayInfo.NUMPY.module())
