@@ -106,7 +106,7 @@ class _NUFFT(pxa.LinOp):
 
 class NUFFT1(_NUFFT):
     r"""
-    Type-1 Non-Uniform FFT :math:`\mathbb{A}: \mathbb{C}^{M} \to \mathbb{C}^{L_{1} \times\cdots\times L_{D}}`.
+    Type-1 Non-Uniform FFT :math:`\mathbf{A}: \mathbb{C}^{M} \to \mathbb{C}^{L_{1} \times\cdots\times L_{D}}`.
 
     NUFFT1 approximates, up to a requested relative accuracy :math:`\varepsilon > 0`, the following exponential sum:
 
@@ -161,7 +161,7 @@ class NUFFT1(_NUFFT):
             (``modeord`` is not supported.)
         """
         # Put all variables in canonical form & validate ----------------------
-        #   x: (M, D) array (NUMPY/CUPY/DASK)
+        #   x: (M, D) array (NUMPY/CUPY)
         #   N: (D,) int
         #   isign: {-1, +1}
         #   eps: float
@@ -375,7 +375,7 @@ def NUFFT2(
     **kwargs,
 ) -> pxt.OpT:
     r"""
-    Type-2 Non-Uniform FFT :math:`\mathbb{A}: \mathbb{C}^{L_{1} \times\cdots\times L_{D}} \to \mathbb{C}^{M}`.
+    Type-2 Non-Uniform FFT :math:`\mathbf{A}: \mathbb{C}^{L_{1} \times\cdots\times L_{D}} \to \mathbb{C}^{M}`.
 
     NUFFT2 approximates, up to a requested relative accuracy :math:`\varepsilon > 0`, the following exponential sum:
 
