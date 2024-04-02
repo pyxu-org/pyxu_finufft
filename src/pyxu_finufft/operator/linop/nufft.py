@@ -20,7 +20,91 @@ __all__ = [
 ]
 
 
-class NUFFT1(pxa.LinOp):
+class _NUFFT(pxa.LinOp):
+    # Super-class of NUFFT[123] containing common methods.
+
+    def __init__(
+        self,
+        dim_shape: pxt.NDArrayShape,
+        codim_shape: pxt.NDArrayShape,
+    ):
+        super().__init__(
+            dim_shape=dim_shape,
+            codim_shape=codim_shape,
+        )
+
+    # Helpers (Internal) ------------------------------------------------------
+    def _cast_warn(self, arr: pxt.NDArray) -> pxt.NDArray:
+        cwidth = pxrt.Width(self._x.dtype).complex
+        cdtype = cwidth.value
+        if arr.dtype == cdtype:
+            out = arr
+        else:
+            if self._enable_warnings:
+                msg = "Computation may not be performed at the requested precision."
+                warnings.warn(msg, pxw.PrecisionWarning)
+            out = arr.astype(dtype=cdtype)
+        return out
+
+    @staticmethod
+    def _as_seq(x, N, _type=None) -> tuple:
+        if isinstance(x, cabc.Iterable):
+            _x = tuple(x)
+        else:
+            _x = (x,)
+        if len(_x) == 1:
+            _x *= N  # broadcast
+        assert len(_x) == N
+
+        if _type is None:
+            return _x
+        else:
+            return tuple(map(_type, _x))
+
+    def _transform(self, x: pxt.NDArray, mode: str) -> pxt.NDArray:
+        # Parameters
+        # ----------
+        # x: NDArray [complex]
+        #     (N_stack, <core_in>) array to transform.
+        # mode: "fw", "bw"
+        #     Transform direction.
+        #
+        # Returns
+        # -------
+        # y: NDArray [complex]
+        #     (N_stack, <core_out>) transformed array.
+        xp = pxu.get_array_module(x)
+        N_stack, sh_in = x.shape[0], x.shape[1:]
+        if mode == "fw":
+            plan = self._pfw
+            sh_out = self.codim_shape[:-1]
+        elif mode == "bw":
+            plan = self._pbw
+            sh_out = self.dim_shape[:-1]
+        else:
+            raise NotImplementedError
+
+        # Pad stack-dims to be a multiple of n_trans
+        Q, r = divmod(N_stack, plan.n_trans)
+        if r > 0:
+            data = xp.zeros(shape=(N_stack + r, *sh_in), dtype=x.dtype)
+            data[:N_stack] = x
+            Q += 1
+        else:
+            data = x
+
+        # Apply FINUFFT plan per batch.
+        data = data.reshape(Q, plan.n_trans, *sh_in)
+        out = xp.zeros((Q, plan.n_trans, *sh_out), dtype=x.dtype)
+        for q in range(Q):
+            plan.execute(data[q], out[q])
+
+        # Remove pad/reshape output
+        out = out.reshape(-1, *sh_out)[:N_stack]
+        return out
+
+
+class NUFFT1(_NUFFT):
     r"""
     Type-1 Non-Uniform FFT :math:`\mathbb{A}: \mathbb{C}^{M} \to \mathbb{C}^{L_{1} \times\cdots\times L_{D}}`.
 
@@ -236,33 +320,6 @@ class NUFFT1(pxa.LinOp):
         return C
 
     # Helpers (Internal) ------------------------------------------------------
-    def _cast_warn(self, arr: pxt.NDArray) -> pxt.NDArray:
-        cwidth = pxrt.Width(self._x.dtype).complex
-        cdtype = cwidth.value
-        if arr.dtype == cdtype:
-            out = arr
-        else:
-            if self._enable_warnings:
-                msg = "Computation may not be performed at the requested precision."
-                warnings.warn(msg, pxw.PrecisionWarning)
-            out = arr.astype(dtype=cdtype)
-        return out
-
-    @staticmethod
-    def _as_seq(x, N, _type=None) -> tuple:
-        if isinstance(x, cabc.Iterable):
-            _x = tuple(x)
-        else:
-            _x = (x,)
-        if len(_x) == 1:
-            _x *= N  # broadcast
-        assert len(_x) == N
-
-        if _type is None:
-            return _x
-        else:
-            return tuple(map(_type, _x))
-
     @staticmethod
     def _plan_fw(**kwargs):
         kwargs = kwargs.copy()
@@ -306,48 +363,6 @@ class NUFFT1(pxa.LinOp):
         plan = _get_planner(ndi)(**kwargs)
         plan.setpts(**dict(zip("xyz"[:D], x.T[:D])))
         return plan
-
-    def _transform(self, x: pxt.NDArray, mode: str) -> pxt.NDArray:
-        # Parameters
-        # ----------
-        # x: NDArray [complex]
-        #     (N_stack, <core_in>) array to transform.
-        # mode: "fw", "bw"
-        #     Transform direction.
-        #
-        # Returns
-        # -------
-        # y: NDArray [complex]
-        #     (N_stack, <core_out>) transformed array.
-        xp = pxu.get_array_module(x)
-        N_stack, sh_in = x.shape[0], x.shape[1:]
-        if mode == "fw":
-            plan = self._pfw
-            sh_out = self.codim_shape[:-1]
-        elif mode == "bw":
-            plan = self._pbw
-            sh_out = self.dim_shape[:-1]
-        else:
-            raise NotImplementedError
-
-        # Pad stack-dims to be a multiple of n_trans
-        Q, r = divmod(N_stack, plan.n_trans)
-        if r > 0:
-            data = xp.zeros(shape=(N_stack + r, *sh_in), dtype=x.dtype)
-            data[:N_stack] = x
-            Q += 1
-        else:
-            data = x
-
-        # Apply FINUFFT plan per batch.
-        data = data.reshape(Q, plan.n_trans, *sh_in)
-        out = xp.zeros((Q, plan.n_trans, *sh_out), dtype=x.dtype)
-        for q in range(Q):
-            plan.execute(data[q], out[q])
-
-        # Remove pad/reshape output
-        out = out.reshape(-1, *sh_out)[:N_stack]
-        return out
 
 
 def NUFFT2(
