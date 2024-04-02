@@ -35,6 +35,7 @@ dependencies = [
 
 # Optional dependencies =======================================================
 [project.optional-dependencies]
+dev = [ "pyxu[dev]", ]
 gpu = [ "cufinufft >= 2.2.0, < 3", ]
 all = [ "pyxu_finufft[gpu]", ]
 
