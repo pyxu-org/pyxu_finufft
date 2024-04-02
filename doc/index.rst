@@ -13,7 +13,8 @@ proposed in the literature:
 
 See the notes below, including [FINUFFT]_, for definitions of the various transforms and algorithmic details.
 
-FINUFFT supports transforms of dimension :math:`d=\{1,2,3\}`.
+FINUFFT supports CPU/GPU transforms of dimension :math:`d=\{1,2,3\}`.
+DASK transforms are not supported.
 
 Notes
 -----
@@ -24,34 +25,31 @@ Notes
 
   .. math::
 
-     \mathcal{I}_{N_1,\ldots,N_d}
+     \mathcal{I}_{L_1,\ldots,L_d}
      =
-     \mathcal{I}_{N_1} \times \cdots \times \mathcal{I}_{N_d}
+     \mathcal{I}_{L_1} \times \cdots \times \mathcal{I}_{L_d}
      \subset \mathbb{Z}^d,
 
-  where the mesh indices :math:`\mathcal{I}_{N_i}\subset\mathbb{Z}` are given for each dimension :math:`i=1,\dots, d`
+  where the mesh indices :math:`\mathcal{I}_{L_i}\subset\mathbb{Z}` are given for each dimension :math:`i=1,\dots, d`
   by:
 
   .. math::
 
-     \mathcal{I}_{N_i}
+     \mathcal{I}_{L_i}
      =
-     \begin{cases}
-         [[-N_i/2, N_i/2-1]], & N_i\in 2\mathbb{N} \text{ (even)}, \\
-         [[-(N_i-1)/2, (N_i-1)/2]], & N_i\in 2\mathbb{N}+1 \text{ (odd)}.
-     \end{cases}
+     \{-N_i, \ldots, N_i\}, \qquad L_i = 2 N_i+1
 
-
-  Then the NUFFT operators approximate, up to a requested relative accuracy :math:`\varepsilon > 0`, the following
+  Then NUFFT operators approximate, up to a requested relative accuracy :math:`\varepsilon > 0`, the following
   exponential sums:
 
   .. math::
 
      \begin{align}
-         (1)\; &v_{\mathbf{n}} = \sum_{m=1}^{M} w_{m} e^{j \cdot s \cdot 2\pi \langle \mathbf{n}, \mathbf{x}_{m} \rangle}, \qquad &\text{Type 1 (non-uniform to uniform)}\\
-         (2)\; &w_{m} = \sum_{\mathbf{n}} v_{\mathbf{n}} e^{j \cdot s \cdot 2\pi \langle \mathbf{n},
-         \mathbf{x}_{m} \rangle}, \qquad &\text{Type 2 (uniform to non-uniform)}\\
-         (3)\; &z_{n} = \sum_{m=1}^{M} w_{m} e^{j \cdot s \cdot 2\pi \langle \mathbf{v}_{n}, \mathbf{x}_{m} \rangle},
+         (1)\; &v_{\mathbf{n}} = \sum_{m=1}^{M} w_{m} e^{j \cdot s \langle \mathbf{n}, \mathbf{x}_{m} \rangle},
+         \qquad &\text{Type 1 (non-uniform to uniform)},\\
+         (2)\; &w_{m} = \sum_{\mathbf{n}} v_{\mathbf{n}} e^{j \cdot s \langle \mathbf{n}, \mathbf{x}_{m} \rangle},
+         \qquad &\text{Type 2 (uniform to non-uniform)},\\
+         (3)\; &z_{n} = \sum_{m=1}^{M} w_{m} e^{j \cdot s \langle \mathbf{v}_{n}, \mathbf{x}_{m} \rangle},
          \qquad &\text{Type 3 (non-uniform to non-uniform)},\\
      \end{align}
 
@@ -67,14 +65,14 @@ Notes
 
 * **Complexity.**
 
-  Naive evaluation of the exponential sums (1), (2) and (3) above costs :math:`O(NM)`, where :math:`N=N_{1}\ldots N_{d}`
+  Naive evaluation of the exponential sums (1), (2) and (3) above costs :math:`O(LM)`, where :math:`L=L_{1}\ldots L_{d}`
   for the type-1 and type-2 NUFFTs.  NUFFT algorithms approximate these sums to a user-specified relative tolerance
-  :math:`\varepsilon` in log-linear complexity in :math:`N` and :math:`M`.  The complexity of the various NUFFTs are
+  :math:`\varepsilon` in log-linear complexity in :math:`L` and :math:`M`.  The complexity of the various NUFFTs are
   given by (see [FINUFFT]_):
 
   .. math::
 
-     &\mathcal{O}\left(N \log(N) + M|\log(\varepsilon)|^d\right)\qquad &\text{(Type 1 and 2)}\\
+     &\mathcal{O}\left(L \log(L) + M|\log(\varepsilon)|^d\right)\qquad &\text{(Type 1 and 2)}\\
      &\mathcal{O}\left(\Pi_{i=1}^dX_iZ_i\sum_{i=1}^d\log(X_iZ_i) + (M + N)|\log(\varepsilon)|^d\right)\qquad &\text{(Type 3)}
 
   where :math:`X_i = \max_{j=1,\ldots,M}|(\mathbf{x}_{j})_i|` and :math:`Z_i = \max_{k=1,\ldots,N}|(\mathbf{z}_k)_i|`
@@ -97,18 +95,12 @@ Notes
 
 * **Optional Parameters.**
 
-  [cu]FINUFFT exposes many optional parameters to adjust the performance of the algorithms, change the output format, or
-  provide debug/timing information.  While the default options are sensible for most setups, advanced users may
-  overwrite them via the ``kwargs`` parameter of :py:class:`~pyxu_finufft.operator.NUFFT1`,
-  :py:class:`~pyxu_finufft.operator.NUFFT2`, and :py:class:`~pyxu_finufft.operator.NUFFT3`.  See the `guru interface
+  [cu]FINUFFT exposes many optional parameters to adjust the performance of the algorithms, or provide debug/timing
+  information.  While the default options are sensible for most setups, advanced users may overwrite them via the
+  ``kwargs`` parameter of :py:class:`~pyxu_finufft.operator.NUFFT1`, :py:class:`~pyxu_finufft.operator.NUFFT2`, and
+  :py:class:`~pyxu_finufft.operator.NUFFT3`.  See the `guru interface
   <https://finufft.readthedocs.io/en/latest/python.html#finufft.Plan>`_ from FINUFFT and its `companion page
   <https://finufft.readthedocs.io/en/latest/opts.html#options-parameters>`_ for details.
-
-   .. admonition:: Hint
-
-      The NUFFT is performed in **batches of (n_trans,)**, where `n_trans` denotes the number of simultaneous transforms
-      requested.  (See the ``n_trans`` parameter of `finufft.Plan
-      <https://finufft.readthedocs.io/en/latest/python.html#finufft.Plan>`_.)
 
 
 Installation
