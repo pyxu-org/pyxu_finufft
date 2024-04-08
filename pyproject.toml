@@ -17,6 +17,7 @@ authors = [
     { name = "S. Kashani", email = "sepand@kashani.ch" },
 ]
 classifiers = [
+    "Framework :: Pycsou",
     "Topic :: Scientific/Engineering",
     "Intended Audience :: Science/Research",
     "Development Status :: 4 - Beta",
@@ -32,6 +33,12 @@ dependencies = [
     "pyxu",
     "finufft >= 2.2.0, < 3",
 ]
+
+# Pyxu Entry Points ===========================================================
+[project.entry-points."pyxu.operator"]
+NUFFT1 = "pyxu_finufft.operator:NUFFT1"
+NUFFT2 = "pyxu_finufft.operator:NUFFT2"
+NUFFT3 = "pyxu_finufft.operator:NUFFT3"
 
 # Optional dependencies =======================================================
 [project.optional-dependencies]
