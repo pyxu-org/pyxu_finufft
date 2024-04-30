@@ -1,1 +1,1 @@
-from pyxu_finufft.operator.linop.nufft import *
+from pyxu_finufft.operator.nufft import *
