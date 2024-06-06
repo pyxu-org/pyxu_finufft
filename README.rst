@@ -7,9 +7,9 @@ pyxu_finufft
 .. image:: https://img.shields.io/pypi/v/pyxu_finufft.svg?color=green
    :target: https://pypi.org/project/pyxu_finufft
    :alt: PyPI
-.. image:: https://img.shields.io/endpoint?url=https://pyxu-org.github.io/fair/shields/pyxu_finufft
-   :alt: Pyxu score
-   :target: https://pyxu-org.github.io/fair/score.html
+.. .. image:: https://img.shields.io/endpoint?url=https://pyxu-org.github.io/fair/shields/pyxu_finufft
+..    :alt: Pyxu score
+..    :target: https://pyxu-org.github.io/fair/score.html
 
 Pyxu bindings to the Flatiron Institute Non-uniform Fast Fourier Transform (FINUFFT) library
 --------------------------------------------------------------------------------------------
